@@ -1052,8 +1052,7 @@ def non_negative_factorization(X, W=None, H=None, n_components=None,
     # check if const_topics should be used, that H exist, and save relevant topics
     if const_topics > 0:
         _check_init(H, (const_topics, n_features), "NMF (input H)")
-        saved_topics = H[:const_topics,:].copy()
-        print(saved_topics)
+        saved_topics = H[:const_topics,:]
 	# check W and H, or initialize them
     if init == 'custom' and update_H:
         _check_init(H, (n_components, n_features), "NMF (input H)")
@@ -1073,7 +1072,7 @@ def non_negative_factorization(X, W=None, H=None, n_components=None,
 	# After chosen initialization, copy back saved topics
     if const_topics > 0:
         H[:const_topics,:] = saved_topics
-        H_init = H.copy()
+
     l1_reg_W, l1_reg_H, l2_reg_W, l2_reg_H = _compute_regularization(alpha, l1_ratio, regularization)
 
     if solver == 'cd':
@@ -1097,7 +1096,7 @@ def non_negative_factorization(X, W=None, H=None, n_components=None,
         warnings.warn("Maximum number of iteration %d reached. Increase it to"
                       " improve convergence." % max_iter, ConvergenceWarning)
 
-    return W, H, n_iter, saved_topics, H_init
+    return W, H, n_iter
 
 
 class NMF(TransformerMixin, BaseEstimator):
