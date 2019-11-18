@@ -815,10 +815,11 @@ def _fit_multiplicative_update(X, W, H, beta_loss='frobenius',
         if update_H:
             delta_H = _multiplicative_update_h(X, W, H, beta_loss, l1_reg_H,
                                                l2_reg_H, gamma)
+
             if const_topics > 0:
-				H[const_topics:,:] *= delta_H[const_topics:,:]
-			else:
-				H *= delta_H
+                H[const_topics:,:] *= delta_H[const_topics:,:]
+            else:
+                H[const_topics:,:] *= delta_H[const_topics:,:]
 
             # These values will be recomputed since H changed
             H_sum, HHt, XHt = None, None, None
@@ -1049,9 +1050,10 @@ def non_negative_factorization(X, W=None, H=None, n_components=None,
         init = "random"
 
     # check if const_topics should be used, that H exist, and save relevant topics
-	if const_topics > 0:
-		_check_init(H, (const_topics, n_features), "NMF (input H)")
-		saved_topics = H[:const_topics,:]
+    if const_topics > 0:
+        _check_init(H, (const_topics, n_features), "NMF (input H)")
+        saved_topics = H[:const_topics,:].copy()
+        print(saved_topics)
 	# check W and H, or initialize them
     if init == 'custom' and update_H:
         _check_init(H, (n_components, n_features), "NMF (input H)")
@@ -1067,13 +1069,12 @@ def non_negative_factorization(X, W=None, H=None, n_components=None,
     else:
         W, H = _initialize_nmf(X, n_components, init=init,
                                random_state=random_state)
-							   
+
 	# After chosen initialization, copy back saved topics
     if const_topics > 0:
-		H[:const_topics,:] = saved_topics
-		
-	l1_reg_W, l1_reg_H, l2_reg_W, l2_reg_H = _compute_regularization(
-        alpha, l1_ratio, regularization)
+        H[:const_topics,:] = saved_topics
+        H_init = H.copy()
+    l1_reg_W, l1_reg_H, l2_reg_W, l2_reg_H = _compute_regularization(alpha, l1_ratio, regularization)
 
     if solver == 'cd':
         W, H, n_iter = _fit_coordinate_descent(X, W, H, tol, max_iter,
@@ -1096,7 +1097,7 @@ def non_negative_factorization(X, W=None, H=None, n_components=None,
         warnings.warn("Maximum number of iteration %d reached. Increase it to"
                       " improve convergence." % max_iter, ConvergenceWarning)
 
-    return W, H, n_iter
+    return W, H, n_iter, saved_topics, H_init
 
 
 class NMF(TransformerMixin, BaseEstimator):
