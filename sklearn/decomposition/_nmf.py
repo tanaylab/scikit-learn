@@ -710,7 +710,7 @@ def _multiplicative_update_h(X, W, H, beta_loss, l1_reg_H, l2_reg_H, gamma):
 def _fit_multiplicative_update(X, W, H, beta_loss='frobenius',
                                max_iter=200, tol=1e-4,
                                l1_reg_W=0, l1_reg_H=0, l2_reg_W=0, l2_reg_H=0,
-                               update_H=True, verbose=0):
+                               update_H=True, const_topics=0, verbose=0):
     """Compute Non-negative Matrix Factorization with Multiplicative Update
 
     The objective function is _beta_divergence(X, WH) and is minimized with an
@@ -757,7 +757,12 @@ def _fit_multiplicative_update(X, W, H, beta_loss='frobenius',
     update_H : boolean, default: True
         Set to True, both W and H will be estimated from initial guesses.
         Set to False, only W will be estimated.
-
+	
+	const_topics : integer, default: 0
+        Set to 0, both W and H will be fully estimated from initial guesses.
+        Set to integer in range [1,n_features], W will be fully estimated from the data, 
+		while H will be estimated only in rows >= const_topics.
+	
     verbose : integer, default: 0
         The verbosity level.
 
@@ -810,7 +815,10 @@ def _fit_multiplicative_update(X, W, H, beta_loss='frobenius',
         if update_H:
             delta_H = _multiplicative_update_h(X, W, H, beta_loss, l1_reg_H,
                                                l2_reg_H, gamma)
-            H *= delta_H
+            if const_topics > 0:
+				H[const_topics:,:] *= delta_H[const_topics:,:]
+			else:
+				H *= delta_H
 
             # These values will be recomputed since H changed
             H_sum, HHt, XHt = None, None, None
@@ -842,7 +850,7 @@ def _fit_multiplicative_update(X, W, H, beta_loss='frobenius',
 
 
 def non_negative_factorization(X, W=None, H=None, n_components=None,
-                               init='warn', update_H=True, solver='cd',
+                               init='warn', update_H=True, const_topics=0, solver='cd',
                                beta_loss='frobenius', tol=1e-4,
                                max_iter=200, alpha=0., l1_ratio=0.,
                                regularization=None, random_state=None,
@@ -918,7 +926,12 @@ def non_negative_factorization(X, W=None, H=None, n_components=None,
     update_H : boolean, default: True
         Set to True, both W and H will be estimated from initial guesses.
         Set to False, only W will be estimated.
-
+	
+	const_topics : integer, default: 0
+        Set to 0, both W and H will be fully estimated from initial guesses.
+        Set to integer in range [1,n_features], W will be fully estimated from the data, 
+		while H will be estimated only in rows >= const_topics.
+		
     solver : 'cd' | 'mu'
         Numerical solver to use:
 
@@ -1035,7 +1048,11 @@ def non_negative_factorization(X, W=None, H=None, n_components=None,
                           "with decomposition.NMF.", FutureWarning)
         init = "random"
 
-    # check W and H, or initialize them
+    # check if const_topics should be used, that H exist, and save relevant topics
+	if const_topics > 0:
+		_check_init(H, (const_topics, n_features), "NMF (input H)")
+		saved_topics = H[:const_topics,:]
+	# check W and H, or initialize them
     if init == 'custom' and update_H:
         _check_init(H, (n_components, n_features), "NMF (input H)")
         _check_init(W, (n_samples, n_components), "NMF (input W)")
@@ -1050,8 +1067,12 @@ def non_negative_factorization(X, W=None, H=None, n_components=None,
     else:
         W, H = _initialize_nmf(X, n_components, init=init,
                                random_state=random_state)
-
-    l1_reg_W, l1_reg_H, l2_reg_W, l2_reg_H = _compute_regularization(
+							   
+	# After chosen initialization, copy back saved topics
+    if const_topics > 0:
+		H[:const_topics,:] = saved_topics
+		
+	l1_reg_W, l1_reg_H, l2_reg_W, l2_reg_H = _compute_regularization(
         alpha, l1_ratio, regularization)
 
     if solver == 'cd':
@@ -1065,7 +1086,7 @@ def non_negative_factorization(X, W=None, H=None, n_components=None,
     elif solver == 'mu':
         W, H, n_iter = _fit_multiplicative_update(X, W, H, beta_loss, max_iter,
                                                   tol, l1_reg_W, l1_reg_H,
-                                                  l2_reg_W, l2_reg_H, update_H,
+                                                  l2_reg_W, l2_reg_H, update_H, const_topics,
                                                   verbose)
 
     else:
